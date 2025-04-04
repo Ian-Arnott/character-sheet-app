@@ -42,6 +42,12 @@ export default function ConditionDrawer() {
         if (conditionImmunities.includes(condition)) {
             removeConditionImmunity(condition)
         } else {
+            if (conditions.includes(condition)) {
+                toast(
+                    "Removed the " + condition + " condition.",
+                )
+                removeCondition(condition)
+            }
             addConditionImmunity(condition)
         }
     }
