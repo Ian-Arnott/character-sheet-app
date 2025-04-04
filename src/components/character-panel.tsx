@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "./ui/card"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
 import { Progress } from "@/components/ui/progress"
+import ConditionDrawer from "./condition-drawer"
 
 export default function CharacterPanel() {
   const {
@@ -144,9 +145,7 @@ export default function CharacterPanel() {
                 <DrawerTitle>Conditions</DrawerTitle>
               </DrawerHeader>
               <div className="p-4">
-                <p className="text-center text-muted-foreground">
-                  Condition options will appear here
-                </p>
+                <ConditionDrawer />
               </div>
             </DrawerContent>
           </Drawer>

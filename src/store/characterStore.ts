@@ -42,7 +42,10 @@ interface CharacterState {
 
     addCondition: (condition: Condition) => void;
     removeCondition: (condition: Condition) => void;
+    addConditionImmunity: (condition: Condition) => void;
+    removeConditionImmunity: (condition: Condition) => void;
     hasCondition: (condition: Condition) => boolean;
+
 
     addResistance: (type: DamageType) => void;
     removeResistance: (type: DamageType) => void;
@@ -59,7 +62,6 @@ interface CharacterState {
     heal: (amount: number) => void;
     clearTempHp: () => void;
 
-    // New setter for inspiration
     setInspiration: (value: boolean) => void;
 }
 
@@ -154,6 +156,18 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     removeCondition: (condition) =>
         set((state) => ({
             conditions: state.conditions.filter((c) => c !== condition),
+        })),
+
+    addConditionImmunity: (condition) =>
+        set((state) => ({
+            conditionImmunities: state.conditionImmunities.includes(condition)
+                ? state.conditionImmunities
+                : [...state.conditionImmunities, condition],
+        })),
+
+    removeConditionImmunity: (condition) =>
+        set((state) => ({
+            conditionImmunities: state.conditionImmunities.filter((c) => c !== condition),
         })),
 
     hasCondition: (condition) => get().conditions.includes(condition),
