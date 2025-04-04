@@ -1,4 +1,4 @@
-import { Condition } from "@/lib/types";
+import { Condition, ExhaustionLevel } from "@/lib/types";
 import { CharacterState } from "@/types/character";
 import { GetFn, SetFn } from "@/types/zustand-utils";
 
@@ -32,5 +32,12 @@ export const conditionHandlers = (set: SetFn, get: GetFn) => ({
             conditionImmunities: state.conditionImmunities.filter((c) => c !== condition),
         })),
 
-    hasCondition: (condition: Condition) => get().conditions.has(condition)
+    hasCondition: (condition: Condition) => get().conditions.has(condition),
+
+    setExhaustion: (level: ExhaustionLevel) => set({ exhaustion: level }),
+
+    getExhaustionModifier: () => {
+        const { exhaustion } = get();
+        return exhaustion > 0 ? -exhaustion * 2 : 0;
+    }
 })

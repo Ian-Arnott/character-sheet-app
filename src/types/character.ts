@@ -1,4 +1,4 @@
-import { Ability, AbilityScores, Condition, DamageType, Proficiencies, ProficiencyLevel } from '@/lib/types';
+import { Ability, AbilityScores, Condition, DamageType, ExhaustionLevel, Proficiencies, ProficiencyLevel } from '@/lib/types';
 
 export interface CharacterState {
     name: string;
@@ -19,6 +19,9 @@ export interface CharacterState {
     tempHp: number;
 
     armorBase: number;
+
+    exhaustion: ExhaustionLevel;
+
     conditions: Map<Condition, number>;
     conditionImmunities: Condition[];
 
@@ -65,5 +68,10 @@ export interface CharacterState {
 
     setInspiration: (value: boolean) => void;
     setCombatMode: (value: boolean) => void;
+    startCombat: () => void;
+    endCombat: () => void;
     advanceCombatTurn: () => void;
+
+    setExhaustion: (level: ExhaustionLevel) => void;
+    getExhaustionModifier: () => number;
 }

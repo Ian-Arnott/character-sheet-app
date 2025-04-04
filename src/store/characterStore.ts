@@ -36,6 +36,9 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     proficiencies: {},
 
     armorBase: 10,
+
+    exhaustion: 0,
+
     conditions: new Map<Condition, number>(),
     conditionImmunities: [],
 

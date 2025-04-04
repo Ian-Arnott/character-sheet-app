@@ -10,6 +10,9 @@ export type Proficiencies = {
     [key in Ability]?: ProficiencyLevel;
 };
 
+export type ExhaustionLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+
 export type Condition =
     | 'blinded'
     | 'charmed'
