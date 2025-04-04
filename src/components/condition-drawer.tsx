@@ -29,10 +29,10 @@ export default function ConditionDrawer() {
             )
             return
         }
-        if (conditions.includes(condition)) {
+        if (conditions.has(condition)) {
             removeCondition(condition)
         } else {
-            addCondition(condition)
+            addCondition(condition, -1)
         }
     }
 
@@ -42,7 +42,7 @@ export default function ConditionDrawer() {
         if (conditionImmunities.includes(condition)) {
             removeConditionImmunity(condition)
         } else {
-            if (conditions.includes(condition)) {
+            if (conditions.has(condition)) {
                 toast(
                     "Removed the " + condition + " condition.",
                 )
@@ -68,7 +68,7 @@ export default function ConditionDrawer() {
                             <Label htmlFor={condition}>{condition}</Label>
                             <Switch
                                 id={condition}
-                                checked={conditions.includes(condition)}
+                                checked={conditions.has(condition)}
                                 onCheckedChange={() => toggleCondition(condition)} />
                         </div>
                         <Separator key={"separatorD-" + condition} />
