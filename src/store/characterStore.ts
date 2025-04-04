@@ -5,6 +5,8 @@ import { abilityHandlers } from './character/abilities';
 import { armorHandlers } from './character/armor';
 import { conditionHandlers } from './character/conditions';
 import { healthHandlers } from './character/health';
+import { Condition } from '@/lib/types';
+import { combatModeHandlers } from './character/combat';
 
 
 export const useCharacterStore = create<CharacterState>((set, get) => ({
@@ -14,6 +16,9 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     subclass: '',
     level: 1,
     inspiration: false,
+
+    combatMode: false,
+    combatTurn: 0,
 
     maxHp: 10,
     currentHp: 10,
@@ -31,7 +36,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     proficiencies: {},
 
     armorBase: 10,
-    conditions: [],
+    conditions: new Map<Condition, number>(),
     conditionImmunities: [],
 
     resistances: [],
@@ -43,4 +48,5 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     ...armorHandlers(set, get),
     ...conditionHandlers(set, get),
     ...healthHandlers(set, get),
+    ...combatModeHandlers(set)
 }));

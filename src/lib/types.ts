@@ -58,3 +58,19 @@ export type DamageType =
     | 'radiant'
     | 'slashing'
     | 'thunder';
+
+export const DAMAGE_TYPES: DamageType[] = [
+    'acid',
+    'bludgeoning',
+    'cold',
+    'fire',
+    'force',
+    'lightning',
+    'necrotic',
+    'piercing',
+    'poison',
+    'psychic',
+    'radiant',
+    'slashing',
+    'thunder',
+];

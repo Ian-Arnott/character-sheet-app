@@ -4,16 +4,20 @@ import { GetFn, SetFn } from "@/types/zustand-utils";
 
 
 export const conditionHandlers = (set: SetFn, get: GetFn) => ({
-    addCondition: (condition: Condition) =>
+    addCondition: (condition: Condition, duration: number) =>
         set((state: CharacterState) => ({
-            conditions: state.conditions.includes(condition)
+            conditions: state.conditions.has(condition)
                 ? state.conditions
-                : [...state.conditions, condition],
+                : state.conditions.set(condition, duration),
         })),
 
     removeCondition: (condition: Condition) =>
         set((state: CharacterState) => ({
-            conditions: state.conditions.filter((c) => c !== condition),
+            conditions: (() => {
+                const updatedConditions = new Map(state.conditions);
+                updatedConditions.delete(condition);
+                return updatedConditions;
+            })(),
         })),
 
     addConditionImmunity: (condition: Condition) =>
@@ -28,5 +32,5 @@ export const conditionHandlers = (set: SetFn, get: GetFn) => ({
             conditionImmunities: state.conditionImmunities.filter((c) => c !== condition),
         })),
 
-    hasCondition: (condition: Condition) => get().conditions.includes(condition)
+    hasCondition: (condition: Condition) => get().conditions.has(condition)
 })

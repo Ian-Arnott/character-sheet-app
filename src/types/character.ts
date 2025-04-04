@@ -8,6 +8,9 @@ export interface CharacterState {
     level: number;
     inspiration: boolean;
 
+    combatMode: boolean;
+    combatTurn: number;
+
     abilityScores: AbilityScores;
     proficiencies: Proficiencies;
 
@@ -16,7 +19,7 @@ export interface CharacterState {
     tempHp: number;
 
     armorBase: number;
-    conditions: Condition[];
+    conditions: Map<Condition, number>;
     conditionImmunities: Condition[];
 
     resistances: DamageType[];
@@ -39,7 +42,7 @@ export interface CharacterState {
     getArmorClass: () => number;
     setArmorBase: (base: number) => void;
 
-    addCondition: (condition: Condition) => void;
+    addCondition: (condition: Condition, duration: number) => void;
     removeCondition: (condition: Condition) => void;
     addConditionImmunity: (condition: Condition) => void;
     removeConditionImmunity: (condition: Condition) => void;
@@ -61,4 +64,6 @@ export interface CharacterState {
     clearTempHp: () => void;
 
     setInspiration: (value: boolean) => void;
+    setCombatMode: (value: boolean) => void;
+    advanceCombatTurn: () => void;
 }
