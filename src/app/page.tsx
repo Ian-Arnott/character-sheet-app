@@ -1,7 +1,13 @@
-'use client';
+"use client"
+import CharacterAppBar from "@/components/character-app-bar"
+import CharacterPanel from "@/components/character-panel"
 
-import CharacterSheetLayout from "@/components/character-sheet/character-sheet-layout";
-
-export default function Home() {
-  return <CharacterSheetLayout />;
+export default function CharacterSheet() {
+  return (
+    <main className="min-h-screen bg-slate-100 dark:bg-slate-900">
+      <CharacterAppBar />
+      <CharacterPanel />
+    </main>
+  )
 }
+
