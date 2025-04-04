@@ -107,17 +107,31 @@ export default function CharacterPanel() {
 
         {/* Column 3: Hit Points and Conditions */}
         <div className="flex flex-col gap-4">
-          <Card className="p-4">
-            <div className="flex flex-col items-center">
-              <span className="text-sm uppercase font-semibold text-slate-500 dark:text-slate-400">
-                Hit Points
-              </span>
-              <div className="text-2xl font-bold my-2">
-                {currentHp}/{maxHp}
+          <Drawer>
+            <DrawerTrigger asChild>
+              <Card className="p-4 cursor-pointer">
+                <div className="flex flex-col items-center">
+                  <span className="text-sm uppercase font-semibold text-slate-500 dark:text-slate-400">
+                    Hit Points
+                  </span>
+                  <div className="text-2xl font-bold my-2">
+                    {currentHp}/{maxHp}
+                  </div>
+                  <Progress value={hpPercentage} className="h-2 w-full" />
+                </div>
+              </Card>
+            </DrawerTrigger>
+            <DrawerContent>
+              <DrawerHeader>
+                <DrawerTitle>Hit Points Details</DrawerTitle>
+              </DrawerHeader>
+              <div className="p-4">
+                <p className="text-center text-muted-foreground">
+                  Detailed hit points information will appear here.
+                </p>
               </div>
-              <Progress value={hpPercentage} className="h-2 w-full" />
-            </div>
-          </Card>
+            </DrawerContent>
+          </Drawer>
 
           <Drawer>
             <DrawerTrigger asChild>
