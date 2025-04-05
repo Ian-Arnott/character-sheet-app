@@ -1,6 +1,6 @@
 "use client"
 
-import { useCharacterStore } from "../store/characterStore"
+import { useCharacterStore } from "../store/character-store"
 import { Shield, Moon, Sparkles, Cog } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "./ui/card"

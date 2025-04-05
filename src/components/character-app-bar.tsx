@@ -1,6 +1,6 @@
 "use client"
 
-import { useCharacterStore } from "../store/characterStore"
+import { useCharacterStore } from "../store/character-store"
 import { SizedBox } from "./ui/sized-box"
 
 export default function CharacterAppBar() {

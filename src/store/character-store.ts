@@ -46,6 +46,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     vulnerabilities: [],
     immunities: [],
 
+
     ...basicSetters(set),
     ...abilityHandlers(set, get),
     ...armorHandlers(set, get),

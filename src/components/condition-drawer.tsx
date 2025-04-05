@@ -1,6 +1,6 @@
 "use client"
 
-import { useCharacterStore } from "../store/characterStore"
+import { useCharacterStore } from "../store/character-store"
 import { Condition, CONDITIONS, ExhaustionLevel } from "@/lib/types"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { Label } from "@radix-ui/react-label"
