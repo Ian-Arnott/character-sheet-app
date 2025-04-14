@@ -1,25 +1,43 @@
 import { create } from "zustand"
-import { db, type Character } from "@/lib/db"
+import { db, type Character, DEFAULT_CHARACTER } from "@/lib/db"
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore"
 import { auth } from "@/lib/firebase"
 import { nanoid } from "nanoid"
 
 interface CharacterState {
   characters: Character[]
+  currentCharacter: Character | null
   loading: boolean
   error: string | null
+  isSaving: boolean
 
   // Actions
   fetchCharacters: () => Promise<void>
+  fetchCharacter: (id: string) => Promise<Character | null>
   createCharacter: (characterData: Partial<Character>) => Promise<Character>
   updateCharacter: (id: string, characterData: Partial<Character>) => Promise<void>
   deleteCharacter: (id: string) => Promise<void>
+  setCurrentCharacter: (character: Character | null) => void
+  saveCharacter: (id: string) => Promise<void>
+
+  // Character sheet specific actions
+  updateAbilityScore: (ability: keyof Character["abilityScores"], value: number) => void
+  toggleSavingThrowProficiency: (ability: keyof Character["abilityScores"]) => void
+  toggleSkillProficiency: (skillName: string) => void
+  toggleSkillExpertise: (skillName: string) => void
+  updateHitPoints: (type: keyof Character["hitPoints"], value: number) => void
+  updateArmorClass: (value: number) => void
+  updateSpeed: (value: number) => void
+  toggleInspiration: () => void
+  toggleCombatMode: () => void
 }
 
 export const useCharacterStore = create<CharacterState>((set, get) => ({
   characters: [],
+  currentCharacter: null,
   loading: false,
   error: null,
+  isSaving: false,
 
   fetchCharacters: async () => {
     const currentUser = auth.currentUser
@@ -46,7 +64,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
       const firebaseCharacters: Character[] = []
       querySnapshot.forEach((doc) => {
-        firebaseCharacters.push(doc.data() as Character)
+        const data = doc.data() as Character
+
+        // Ensure all required fields exist
+        const character = {
+          ...DEFAULT_CHARACTER,
+          ...data,
+          syncStatus: "synced",
+          lastSyncedAt: Date.now(),
+        } as Character
+
+        firebaseCharacters.push(character)
       })
 
       // Update local DB with Firebase data
@@ -57,6 +85,63 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     } catch (error) {
       console.error("Error fetching characters:", error)
       set({ error: "Failed to fetch characters", loading: false })
+    }
+  },
+
+  fetchCharacter: async (id: string) => {
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      set({ error: "User not authenticated" })
+      return null
+    }
+
+    try {
+      // First try to get character from local state
+      const { characters } = get()
+      let character = characters.find((c) => c.id === id)
+
+      if (character) {
+        set({ currentCharacter: character })
+        return character
+      }
+
+      // If not in state, try to get from IndexedDB
+      character = await db.characters.get(id)
+
+      if (character && character.userId === currentUser.uid) {
+        set({ currentCharacter: character })
+        return character
+      }
+
+      // If not in IndexedDB, try to get from Firebase
+      const characterDoc = await doc(db.firebase, "characters", id)
+      const characterSnapshot = await getDocs(
+        query(collection(db.firebase, "characters"), where("id", "==", id), where("userId", "==", currentUser.uid)),
+      )
+
+      if (!characterSnapshot.empty) {
+        const data = characterSnapshot.docs[0].data() as Character
+
+        // Ensure all required fields exist
+        character = {
+          ...DEFAULT_CHARACTER,
+          ...data,
+          syncStatus: "synced",
+          lastSyncedAt: Date.now(),
+        } as Character
+
+        // Update local DB
+        await db.characters.put(character)
+
+        set({ currentCharacter: character })
+        return character
+      }
+
+      return null
+    } catch (error) {
+      console.error("Error fetching character:", error)
+      set({ error: "Failed to fetch character" })
+      return null
     }
   },
 
@@ -74,29 +159,52 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
     const timestamp = Date.now()
     const newCharacter: Character = {
+      ...(DEFAULT_CHARACTER as Character),
+      ...characterData,
       id: nanoid(),
       userId: currentUser.uid,
-      name: characterData.name || "New Character",
-      level: characterData.level || 1,
-      class: characterData.class || "Fighter",
-      subclass: characterData.subclass || null,
       createdAt: timestamp,
       updatedAt: timestamp,
+      syncStatus: "local",
+      lastSyncedAt: null,
     }
 
     try {
-      // Save to Firebase
-      await setDoc(doc(db.firebase, "characters", newCharacter.id), newCharacter)
-
-      // Save to local DB
+      // Save to local DB first
       await db.characters.put(newCharacter)
 
       // Update state
-      set({ characters: [...get().characters, newCharacter] })
+      set({
+        characters: [...get().characters, newCharacter],
+        currentCharacter: newCharacter,
+      })
 
-      return newCharacter
+      // Then save to Firebase
+      set({ isSaving: true })
+      await setDoc(doc(db.firebase, "characters", newCharacter.id), newCharacter)
+
+      // Update sync status
+      const updatedCharacter = {
+        ...newCharacter,
+        syncStatus: "synced",
+        lastSyncedAt: Date.now(),
+      }
+
+      await db.characters.update(newCharacter.id, {
+        syncStatus: "synced",
+        lastSyncedAt: Date.now(),
+      })
+
+      set({
+        isSaving: false,
+        characters: get().characters.map((c) => (c.id === newCharacter.id ? updatedCharacter : c)),
+        currentCharacter: updatedCharacter,
+      })
+
+      return updatedCharacter
     } catch (error) {
       console.error("Error creating character:", error)
+      set({ isSaving: false })
       throw new Error("Failed to create character")
     }
   },
@@ -108,7 +216,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     }
 
     try {
-      const { characters } = get()
+      const { characters, currentCharacter } = get()
       const characterIndex = characters.findIndex((c) => c.id === id)
 
       if (characterIndex === -1) {
@@ -119,10 +227,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         ...characters[characterIndex],
         ...characterData,
         updatedAt: Date.now(),
+        syncStatus: "local",
       }
-
-      // Update in Firebase
-      await setDoc(doc(db.firebase, "characters", id), updatedCharacter, { merge: true })
 
       // Update in local DB
       await db.characters.update(id, updatedCharacter)
@@ -130,7 +236,11 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       // Update state
       const updatedCharacters = [...characters]
       updatedCharacters[characterIndex] = updatedCharacter
-      set({ characters: updatedCharacters })
+
+      set({
+        characters: updatedCharacters,
+        currentCharacter: currentCharacter?.id === id ? updatedCharacter : currentCharacter,
+      })
     } catch (error) {
       console.error("Error updating character:", error)
       throw new Error("Failed to update character")
@@ -151,11 +261,353 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       await db.characters.delete(id)
 
       // Update state
-      const { characters } = get()
-      set({ characters: characters.filter((c) => c.id !== id) })
+      const { characters, currentCharacter } = get()
+      set({
+        characters: characters.filter((c) => c.id !== id),
+        currentCharacter: currentCharacter?.id === id ? null : currentCharacter,
+      })
     } catch (error) {
       console.error("Error deleting character:", error)
       throw new Error("Failed to delete character")
     }
+  },
+
+  setCurrentCharacter: (character) => {
+    set({ currentCharacter: character })
+  },
+
+  saveCharacter: async (id) => {
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      throw new Error("User not authenticated")
+    }
+
+    const { characters } = get()
+    const character = characters.find((c) => c.id === id)
+
+    if (!character) {
+      throw new Error("Character not found")
+    }
+
+    try {
+      set({ isSaving: true })
+
+      // Update sync status to syncing
+      await db.characters.update(id, { syncStatus: "syncing" })
+
+      set({
+        characters: get().characters.map((c) => (c.id === id ? { ...c, syncStatus: "syncing" } : c)),
+        currentCharacter:
+          get().currentCharacter?.id === id
+            ? { ...get().currentCharacter, syncStatus: "syncing" }
+            : get().currentCharacter,
+      })
+
+      // Save to Firebase
+      await setDoc(doc(db.firebase, "characters", id), {
+        ...character,
+        syncStatus: "synced",
+        lastSyncedAt: Date.now(),
+      })
+
+      // Update local DB and state
+      await db.characters.update(id, {
+        syncStatus: "synced",
+        lastSyncedAt: Date.now(),
+      })
+
+      set({
+        isSaving: false,
+        characters: get().characters.map((c) =>
+          c.id === id ? { ...c, syncStatus: "synced", lastSyncedAt: Date.now() } : c,
+        ),
+        currentCharacter:
+          get().currentCharacter?.id === id
+            ? { ...get().currentCharacter, syncStatus: "synced", lastSyncedAt: Date.now() }
+            : get().currentCharacter,
+      })
+    } catch (error) {
+      console.error("Error saving character:", error)
+
+      // Revert sync status
+      await db.characters.update(id, { syncStatus: "local" })
+
+      set({
+        isSaving: false,
+        characters: get().characters.map((c) => (c.id === id ? { ...c, syncStatus: "local" } : c)),
+        currentCharacter:
+          get().currentCharacter?.id === id
+            ? { ...get().currentCharacter, syncStatus: "local" }
+            : get().currentCharacter,
+      })
+
+      throw new Error("Failed to save character")
+    }
+  },
+
+  // Character sheet specific actions
+  updateAbilityScore: (ability, value) => {
+    const { currentCharacter } = get()
+    if (!currentCharacter) return
+
+    const updatedCharacter = {
+      ...currentCharacter,
+      abilityScores: {
+        ...currentCharacter.abilityScores,
+        [ability]: value,
+      },
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    }
+
+    // Update in local DB
+    db.characters.update(currentCharacter.id, {
+      abilityScores: updatedCharacter.abilityScores,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    })
+
+    // Update state
+    set({
+      currentCharacter: updatedCharacter,
+      characters: get().characters.map((c) => (c.id === currentCharacter.id ? updatedCharacter : c)),
+    })
+  },
+
+  toggleSavingThrowProficiency: (ability) => {
+    const { currentCharacter } = get()
+    if (!currentCharacter) return
+
+    const isProficient = currentCharacter.proficientSavingThrows.includes(ability)
+    let updatedProficiencies: Array<keyof Character["abilityScores"]>
+
+    if (isProficient) {
+      updatedProficiencies = currentCharacter.proficientSavingThrows.filter((a) => a !== ability)
+    } else {
+      updatedProficiencies = [...currentCharacter.proficientSavingThrows, ability]
+    }
+
+    const updatedCharacter = {
+      ...currentCharacter,
+      proficientSavingThrows: updatedProficiencies,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    }
+
+    // Update in local DB
+    db.characters.update(currentCharacter.id, {
+      proficientSavingThrows: updatedProficiencies,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    })
+
+    // Update state
+    set({
+      currentCharacter: updatedCharacter,
+      characters: get().characters.map((c) => (c.id === currentCharacter.id ? updatedCharacter : c)),
+    })
+  },
+
+  toggleSkillProficiency: (skillName) => {
+    const { currentCharacter } = get()
+    if (!currentCharacter || !currentCharacter.skills[skillName]) return
+
+    const updatedSkills = {
+      ...currentCharacter.skills,
+      [skillName]: {
+        ...currentCharacter.skills[skillName],
+        proficient: !currentCharacter.skills[skillName].proficient,
+        // If turning off proficiency, also turn off expertise
+        expertise: !currentCharacter.skills[skillName].proficient
+          ? false
+          : currentCharacter.skills[skillName].expertise,
+      },
+    }
+
+    const updatedCharacter = {
+      ...currentCharacter,
+      skills: updatedSkills,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    }
+
+    // Update in local DB
+    db.characters.update(currentCharacter.id, {
+      skills: updatedSkills,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    })
+
+    // Update state
+    set({
+      currentCharacter: updatedCharacter,
+      characters: get().characters.map((c) => (c.id === currentCharacter.id ? updatedCharacter : c)),
+    })
+  },
+
+  toggleSkillExpertise: (skillName) => {
+    const { currentCharacter } = get()
+    if (!currentCharacter || !currentCharacter.skills[skillName]) return
+
+    // Can only toggle expertise if already proficient
+    if (!currentCharacter.skills[skillName].proficient) return
+
+    const updatedSkills = {
+      ...currentCharacter.skills,
+      [skillName]: {
+        ...currentCharacter.skills[skillName],
+        expertise: !currentCharacter.skills[skillName].expertise,
+      },
+    }
+
+    const updatedCharacter = {
+      ...currentCharacter,
+      skills: updatedSkills,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    }
+
+    // Update in local DB
+    db.characters.update(currentCharacter.id, {
+      skills: updatedSkills,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    })
+
+    // Update state
+    set({
+      currentCharacter: updatedCharacter,
+      characters: get().characters.map((c) => (c.id === currentCharacter.id ? updatedCharacter : c)),
+    })
+  },
+
+  updateHitPoints: (type, value) => {
+    const { currentCharacter } = get()
+    if (!currentCharacter) return
+
+    const updatedHitPoints = {
+      ...currentCharacter.hitPoints,
+      [type]: value,
+    }
+
+    const updatedCharacter = {
+      ...currentCharacter,
+      hitPoints: updatedHitPoints,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    }
+
+    // Update in local DB
+    db.characters.update(currentCharacter.id, {
+      hitPoints: updatedHitPoints,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    })
+
+    // Update state
+    set({
+      currentCharacter: updatedCharacter,
+      characters: get().characters.map((c) => (c.id === currentCharacter.id ? updatedCharacter : c)),
+    })
+  },
+
+  updateArmorClass: (value) => {
+    const { currentCharacter } = get()
+    if (!currentCharacter) return
+
+    const updatedCharacter = {
+      ...currentCharacter,
+      armorClass: value,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    }
+
+    // Update in local DB
+    db.characters.update(currentCharacter.id, {
+      armorClass: value,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    })
+
+    // Update state
+    set({
+      currentCharacter: updatedCharacter,
+      characters: get().characters.map((c) => (c.id === currentCharacter.id ? updatedCharacter : c)),
+    })
+  },
+
+  updateSpeed: (value) => {
+    const { currentCharacter } = get()
+    if (!currentCharacter) return
+
+    const updatedCharacter = {
+      ...currentCharacter,
+      speed: value,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    }
+
+    // Update in local DB
+    db.characters.update(currentCharacter.id, {
+      speed: value,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    })
+
+    // Update state
+    set({
+      currentCharacter: updatedCharacter,
+      characters: get().characters.map((c) => (c.id === currentCharacter.id ? updatedCharacter : c)),
+    })
+  },
+
+  toggleInspiration: () => {
+    const { currentCharacter } = get()
+    if (!currentCharacter) return
+
+    const updatedCharacter = {
+      ...currentCharacter,
+      inspiration: !currentCharacter.inspiration,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    }
+
+    // Update in local DB
+    db.characters.update(currentCharacter.id, {
+      inspiration: updatedCharacter.inspiration,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    })
+
+    // Update state
+    set({
+      currentCharacter: updatedCharacter,
+      characters: get().characters.map((c) => (c.id === currentCharacter.id ? updatedCharacter : c)),
+    })
+  },
+
+  toggleCombatMode: () => {
+    const { currentCharacter } = get()
+    if (!currentCharacter) return
+
+    const updatedCharacter = {
+      ...currentCharacter,
+      combatMode: !currentCharacter.combatMode,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    }
+
+    // Update in local DB
+    db.characters.update(currentCharacter.id, {
+      combatMode: updatedCharacter.combatMode,
+      syncStatus: "local",
+      updatedAt: Date.now(),
+    })
+
+    // Update state
+    set({
+      currentCharacter: updatedCharacter,
+      characters: get().characters.map((c) => (c.id === currentCharacter.id ? updatedCharacter : c)),
+    })
   },
 }))

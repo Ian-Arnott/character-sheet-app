@@ -7,6 +7,7 @@ import { ChevronLeft, Menu, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/auth-context"
+import { ModeToggle } from "./toggle-mode"
 
 interface AppBarProps {
   title: string
@@ -46,6 +47,7 @@ export function AppBar({ title, showBackButton = false, onMenuClick, actions }: 
       </div>
       <div className="flex items-center gap-2">
         {actions}
+        <ModeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">
