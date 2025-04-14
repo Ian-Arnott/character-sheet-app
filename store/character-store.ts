@@ -78,7 +78,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       userId: currentUser.uid,
       name: characterData.name || "New Character",
       level: characterData.level || 1,
-      class: characterData.class || "Fighter",
+      class: characterData.class || "",
       subclass: characterData.subclass || null,
       createdAt: timestamp,
       updatedAt: timestamp,

@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
     return {
-        name: 'Character Sheet App',
+        name: 'NextCharacter',
         short_name: 'NextCharacter',
         description: 'A Progressive Web App built with Next.js',
         start_url: '/',

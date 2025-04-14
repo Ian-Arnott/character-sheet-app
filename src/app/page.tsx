@@ -1,16 +1,27 @@
 "use client"
-import CharacterAppBar from "@/components/character-app-bar"
-import CharacterPanel from "@/components/character-panel"
-import ProtectedRoute from "@/components/protected-route"
 
-export default function CharacterSheet() {
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
+import { Loader2 } from "lucide-react"
+
+export default function HomePage() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading) {
+      if (user) {
+        router.push("/dashboard")
+      } else {
+        router.push("/login")
+      }
+    }
+  }, [user, loading, router])
+
   return (
-    <ProtectedRoute>
-      <main className="min-h-screen bg-slate-100 dark:bg-slate-900">
-        <CharacterAppBar />
-        <CharacterPanel />
-      </main>
-    </ProtectedRoute>
+    <div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
   )
 }
-
