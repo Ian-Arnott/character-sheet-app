@@ -118,7 +118,7 @@ class SyncQueueManager {
       // Process each operation
       for (const operation of operations) {
         try {
-          await this.processOperation(operation)
+          await this.processOperation({ ...operation, id: String(operation.id) })
           // If successful, remove from queue
           await db.syncQueue.delete(operation.id)
         } catch (error) {

@@ -1,4 +1,4 @@
-import { db } from "./db"
+import { Character, db, SyncQueueItem } from "./db"
 
 // In-memory fallback storage
 const memoryStorage: Record<string, string> = {}
@@ -116,26 +116,32 @@ export const safeLocalStorage = {
   },
 }
 
+// Map of store names to their types
+type StoreKeyMap = {
+  characters: Character
+  syncQueue: SyncQueueItem
+}
+
 // IndexedDB wrapper for additional persistence
 export const indexedDBStorage = {
-  async getItem<T>(storeName: string, key: string): Promise<T | null> {
+  async getItem<K extends keyof StoreKeyMap>(storeName: K, key: string): Promise<StoreKeyMap[K] | null> {
     try {
-      return (await db[storeName].get(key)) || null
+      return (await db[storeName].get(key)) as StoreKeyMap[K] | null
     } catch (e) {
       console.warn(`Error getting item from IndexedDB (${storeName}):`, e)
       return null
     }
   },
 
-  async setItem<T>(storeName: string, key: string, value: T): Promise<void> {
+  async setItem<K extends keyof StoreKeyMap>(storeName: K, key: string, value: StoreKeyMap[K]): Promise<void> {
     try {
-      await db[storeName].put(value, key)
+      await db[storeName].put(value as Character & SyncQueueItem, key)
     } catch (e) {
       console.warn(`Error setting item in IndexedDB (${storeName}):`, e)
     }
   },
 
-  async removeItem(storeName: string, key: string): Promise<void> {
+  async removeItem<K extends keyof StoreKeyMap>(storeName: K, key: string): Promise<void> {
     try {
       await db[storeName].delete(key)
     } catch (e) {
@@ -143,7 +149,7 @@ export const indexedDBStorage = {
     }
   },
 
-  async clear(storeName: string): Promise<void> {
+  async clear<K extends keyof StoreKeyMap>(storeName: K): Promise<void> {
     try {
       await db[storeName].clear()
     } catch (e) {
