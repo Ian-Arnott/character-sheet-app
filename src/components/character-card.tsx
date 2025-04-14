@@ -6,6 +6,7 @@ import { Edit, Trash2 } from "lucide-react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { Character } from "@/lib/db"
+import { SyncStatusIndicator } from "@/components/sync-status-indicator"
 
 interface CharacterCardProps {
   character: Character
@@ -38,6 +39,11 @@ export function CharacterCard({ character, onEdit, onDelete, onClick }: Characte
             </p>
           </div>
           <div className="flex items-center gap-1">
+            <SyncStatusIndicator
+              status={character.syncStatus}
+              lastSynced={character.lastSyncedAt}
+              className="scale-75 origin-right"
+            />
             <Button variant="ghost" size="icon" onClick={handleEdit}>
               <Edit className="h-4 w-4" />
               <span className="sr-only">Edit</span>

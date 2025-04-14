@@ -18,7 +18,8 @@ import {
   CharacterTabsContent,
 } from "@/components/character-sheet/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { Eye } from "lucide-react"
+import { Eye, WifiOff } from "lucide-react"
+import { useNetworkStatus } from "@/lib/network-utils"
 
 interface CharacterSheetProps {
   characterId: string
@@ -39,12 +40,42 @@ export function CharacterSheet({ characterId }: CharacterSheetProps) {
     toggleCombatMode,
     saveCharacter,
     isSaving,
+    pendingSyncCount,
+    refreshPendingSyncCount,
   } = useCharacterStore()
   const { toast } = useToast()
+  const isOnline = useNetworkStatus()
 
   useEffect(() => {
     fetchCharacter(characterId)
-  }, [characterId, fetchCharacter])
+    refreshPendingSyncCount()
+  }, [characterId, fetchCharacter, refreshPendingSyncCount])
+
+  // Periodically refresh pending sync count
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshPendingSyncCount()
+    }, 30000) // Every 30 seconds
+
+    return () => clearInterval(interval)
+  }, [refreshPendingSyncCount])
+
+  // Show toast when network status changes
+  useEffect(() => {
+    if (isOnline) {
+      toast({
+        title: "You're back online",
+        description: "Your changes will sync automatically.",
+        variant: "default",
+      })
+    } else {
+      toast({
+        title: "You're offline",
+        description: "Changes will be saved locally and synced when you're back online.",
+        variant: "default",
+      })
+    }
+  }, [isOnline, toast])
 
   if (!currentCharacter) {
     return (
@@ -61,6 +92,15 @@ export function CharacterSheet({ characterId }: CharacterSheetProps) {
   const proficiencyBonus = getProficiencyBonus(currentCharacter.level)
 
   const handleSyncCharacter = async () => {
+    if (!isOnline) {
+      toast({
+        title: "You're offline",
+        description: "Changes will sync automatically when you're back online.",
+        variant: "default",
+      })
+      return
+    }
+
     try {
       await saveCharacter(currentCharacter.id)
       toast({
@@ -122,12 +162,19 @@ export function CharacterSheet({ characterId }: CharacterSheetProps) {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">{currentCharacter.name}</h1>
         <div className="flex items-center gap-2">
+          {!isOnline && (
+            <div className="flex items-center gap-1 text-sm text-slate-500">
+              <WifiOff className="h-4 w-4" />
+              <span className="hidden sm:inline">Offline Mode</span>
+            </div>
+          )}
           <SyncStatusIndicator
             status={currentCharacter.syncStatus}
             lastSynced={currentCharacter.lastSyncedAt}
+            pendingSyncCount={pendingSyncCount}
             onClick={currentCharacter.syncStatus === "local" ? handleSyncCharacter : undefined}
           />
-          {currentCharacter.syncStatus === "local" && (
+          {isOnline && currentCharacter.syncStatus === "local" && (
             <Button size="sm" onClick={handleSyncCharacter} disabled={isSaving}>
               {isSaving ? "Saving..." : "Save"}
             </Button>
@@ -267,16 +314,39 @@ export function CharacterSheet({ characterId }: CharacterSheetProps) {
 
         <CharacterTabsContent value="combat">
           <div className="text-center py-12 text-muted-foreground">
-            Combat features will be implemented in a future update.
+            {!isOnline ? (
+              <div>
+                <WifiOff className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                <p>Combat features are available in offline mode.</p>
+                <p className="text-sm mt-2">All changes will sync when you're back online.</p>
+              </div>
+            ) : (
+              "Combat features will be implemented in a future update."
+            )}
           </div>
         </CharacterTabsContent>
 
         <CharacterTabsContent value="spells">
           <div className="text-center py-12 text-muted-foreground">
-            Spell management will be implemented in a future update.
+            {!isOnline ? (
+              <div>
+                <WifiOff className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                <p>Spell management is available in offline mode.</p>
+                <p className="text-sm mt-2">All changes will sync when you're back online.</p>
+              </div>
+            ) : (
+              "Spell management will be implemented in a future update."
+            )}
           </div>
         </CharacterTabsContent>
       </CharacterTabs>
+
+      {!isOnline && (
+        <div className="fixed bottom-4 left-0 right-0 mx-auto w-max bg-amber-100 text-amber-800 px-4 py-2 rounded-full shadow-md flex items-center gap-2">
+          <WifiOff className="h-4 w-4" />
+          <span>Offline Mode - Changes saved locally</span>
+        </div>
+      )}
     </div>
   )
 }

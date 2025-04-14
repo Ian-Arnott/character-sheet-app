@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
+import { safeSessionStorage } from "@/lib/storage-utils"
 
 export default function RegisterForm() {
   const [email, setEmail] = useState("")
@@ -19,8 +20,26 @@ export default function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const { signUp, signInWithGoogle, error } = useAuth()
+  const { signUp, signInWithGoogle, error, user } = useAuth()
   const router = useRouter()
+
+  // Check if we're coming back from a redirect auth flow
+  useEffect(() => {
+    const redirectSuccess = safeSessionStorage.getItem("auth_redirect_success")
+    if (redirectSuccess === "true") {
+      // Clear the flag
+      safeSessionStorage.removeItem("auth_redirect_success")
+      // Navigate to dashboard
+      router.push("/dashboard")
+    }
+  }, [router])
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      router.push("/dashboard")
+    }
+  }, [user, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,7 +75,8 @@ export default function RegisterForm() {
 
     try {
       await signInWithGoogle()
-      router.push("/dashboard")
+      // Don't navigate here - we'll handle navigation in the useEffect
+      // for redirect flow or immediately for popup flow
     } catch (error) {
       // Error is handled in the auth context
     } finally {

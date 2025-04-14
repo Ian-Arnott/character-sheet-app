@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app"
-import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth"
+import { getAuth } from "firebase/auth"
 import { getFirestore } from "firebase/firestore"
 
 const firebaseConfig = {
@@ -17,7 +17,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 const auth = getAuth(app)
 const firestore = getFirestore(app)
 
-// Set persistence to LOCAL for PWA persistent login
-setPersistence(auth, browserLocalPersistence)
+// We're now handling persistence in the auth context
+// so we don't set it here anymore
 
 export { app, auth, firestore }

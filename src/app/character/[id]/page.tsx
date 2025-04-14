@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { AppBar } from "@/components/app-bar"
 import { Button } from "@/components/ui/button"
@@ -10,8 +10,10 @@ import { useToast } from "@/hooks/use-toast"
 import { useCharacterStore } from "@/store/character-store"
 import type { Character } from "@/lib/db"
 import ProtectedRoute from "@/components/auth/protected-route"
-import { Save } from "lucide-react"
+import { Save, WifiOff } from "lucide-react"
 import * as React from "react"
+import { useNetworkStatus } from "@/lib/network-utils"
+import { SyncStatusIndicator } from "@/components/sync-status-indicator"
 
 // Update the interface to make params a Promise
 interface CharacterDetailPageProps {
@@ -27,8 +29,20 @@ export default function CharacterDetailPage({ params }: CharacterDetailPageProps
 
   const router = useRouter()
   const { toast } = useToast()
-  const { currentCharacter, updateCharacter, saveCharacter, isSaving } = useCharacterStore()
+  const { currentCharacter, updateCharacter, saveCharacter, isSaving, pendingSyncCount, refreshPendingSyncCount } =
+    useCharacterStore()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const isOnline = useNetworkStatus()
+
+  useEffect(() => {
+    refreshPendingSyncCount()
+
+    const interval = setInterval(() => {
+      refreshPendingSyncCount()
+    }, 30000) // Every 30 seconds
+
+    return () => clearInterval(interval)
+  }, [refreshPendingSyncCount])
 
   const handleEditCharacter = () => {
     setIsDrawerOpen(true)
@@ -56,6 +70,15 @@ export default function CharacterDetailPage({ params }: CharacterDetailPageProps
   const handleSyncCharacter = async () => {
     if (!currentCharacter) return
 
+    if (!isOnline) {
+      toast({
+        title: "You're offline",
+        description: "Changes will sync automatically when you're back online.",
+        variant: "default",
+      })
+      return
+    }
+
     try {
       await saveCharacter(currentCharacter.id)
       toast({
@@ -79,7 +102,24 @@ export default function CharacterDetailPage({ params }: CharacterDetailPageProps
           showBackButton
           actions={
             <>
-              {currentCharacter?.syncStatus === "local" && (
+              {!isOnline && (
+                <div className="flex items-center gap-1 text-sm text-slate-500">
+                  <WifiOff className="h-4 w-4" />
+                  <span className="hidden sm:inline">Offline</span>
+                </div>
+              )}
+
+              {currentCharacter && (
+                <SyncStatusIndicator
+                  status={currentCharacter.syncStatus}
+                  lastSynced={currentCharacter.lastSyncedAt}
+                  pendingSyncCount={pendingSyncCount}
+                  onClick={currentCharacter.syncStatus === "local" ? handleSyncCharacter : undefined}
+                  className="mr-2"
+                />
+              )}
+
+              {isOnline && currentCharacter?.syncStatus === "local" && (
                 <Button variant="outline" size="icon" onClick={handleSyncCharacter} disabled={isSaving}>
                   <Save className="h-4 w-4" />
                   <span className="sr-only">Save</span>

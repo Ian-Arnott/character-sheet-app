@@ -1,7 +1,7 @@
 import Dexie, { type Table } from "dexie"
 import { firestore } from "./firebase"
 
-// Update the Character interface to include inspiration and combatMode
+// Define the Character interface
 export interface Character {
   id: string
   userId: string
@@ -13,6 +13,7 @@ export interface Character {
   updatedAt: number
   syncStatus: "synced" | "local" | "syncing"
   lastSyncedAt: number | null
+  lastModified: number // For conflict resolution
   inspiration: boolean
   combatMode: boolean
 
@@ -45,7 +46,19 @@ export interface Character {
   passivePerception?: number // Calculated
 }
 
-// Update DEFAULT_CHARACTER to include the new properties
+// Define the sync queue item interface
+export interface SyncQueueItem {
+  id?: number
+  type: "create" | "update" | "delete"
+  collection: string
+  documentId: string
+  data?: any
+  timestamp: number
+  retryCount: number
+  userId: string
+}
+
+// Default character values
 export const DEFAULT_CHARACTER: Partial<Character> = {
   name: "New Character",
   level: 1,
@@ -89,6 +102,7 @@ export const DEFAULT_CHARACTER: Partial<Character> = {
   },
   syncStatus: "synced",
   lastSyncedAt: null,
+  lastModified: Date.now(),
   inspiration: false,
   combatMode: false,
 }
@@ -96,6 +110,7 @@ export const DEFAULT_CHARACTER: Partial<Character> = {
 // Create a Dexie database class
 export class CharacterDatabase extends Dexie {
   characters!: Table<Character>
+  syncQueue!: Table<SyncQueueItem>
   firebase: typeof firestore
 
   constructor() {
@@ -103,6 +118,16 @@ export class CharacterDatabase extends Dexie {
 
     this.version(1).stores({
       characters: "id, userId, name, level, class, subclass, createdAt, updatedAt, syncStatus",
+    })
+
+    // Add syncQueue table in version 2
+    this.version(2).stores({
+      syncQueue: "++id, type, collection, documentId, timestamp, userId",
+    })
+
+    // Update characters table in version 3 to include lastModified
+    this.version(3).stores({
+      characters: "id, userId, name, level, class, subclass, createdAt, updatedAt, syncStatus, lastModified",
     })
 
     this.firebase = firestore
