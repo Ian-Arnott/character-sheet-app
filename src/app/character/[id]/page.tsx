@@ -1,4 +1,5 @@
 "use client"
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { AppBar } from "@/components/app-bar"
@@ -10,21 +11,23 @@ import { useCharacterStore } from "@/store/character-store"
 import type { Character } from "@/lib/db"
 import ProtectedRoute from "@/components/auth/protected-route"
 import { Save } from "lucide-react"
+import * as React from "react"
 
-// Define the proper type for params
+// Update the interface to make params a Promise
 interface CharacterDetailPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default function CharacterDetailPage({ params }: CharacterDetailPageProps) {
-  // Safely access the id parameter
-  const characterId = params.id
+  // Use React.use to unwrap the Promise
+  const unwrappedParams = React.use(params)
+  const characterId = unwrappedParams.id
 
   const router = useRouter()
   const { toast } = useToast()
-  const { characters, currentCharacter, updateCharacter, saveCharacter, isSaving } = useCharacterStore()
+  const { currentCharacter, updateCharacter, saveCharacter, isSaving } = useCharacterStore()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   const handleEditCharacter = () => {
