@@ -1,6 +1,4 @@
 "use client"
-
-import * as React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { AppBar } from "@/components/app-bar"
@@ -13,10 +11,16 @@ import type { Character } from "@/lib/db"
 import ProtectedRoute from "@/components/auth/protected-route"
 import { Save } from "lucide-react"
 
-export default function CharacterDetailPage({ params }: { params: any }) {
-  // Unwrap params using React.use() for future compatibility
-  const unwrappedParams = React.use(params)
-  const characterId = unwrappedParams.id
+// Define the proper type for params
+interface CharacterDetailPageProps {
+  params: {
+    id: string
+  }
+}
+
+export default function CharacterDetailPage({ params }: CharacterDetailPageProps) {
+  // Safely access the id parameter
+  const characterId = params.id
 
   const router = useRouter()
   const { toast } = useToast()

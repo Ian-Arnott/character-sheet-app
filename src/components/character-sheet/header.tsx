@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Zap, Award, Sparkles, Swords } from "lucide-react"
+import { Shield, Zap, Award, Sparkles, Swords } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -121,6 +121,7 @@ export function Header({
               />
             ) : (
               <div className="flex items-center justify-center">
+                <Shield className="h-4 w-4 text-slate-400 absolute top-2" />
                 <span className="text-2xl font-bold">{armorClass}</span>
               </div>
             )}

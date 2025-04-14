@@ -64,15 +64,15 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
       const firebaseCharacters: Character[] = []
       querySnapshot.forEach((doc) => {
-        const data = doc.data() as Character
+        const data = doc.data() as Partial<Character>
 
-        // Ensure all required fields exist
-        const character = {
-          ...DEFAULT_CHARACTER,
+        // Ensure all required fields exist and correct type for syncStatus
+        const character: Character = {
+          ...(DEFAULT_CHARACTER as Character),
           ...data,
-          syncStatus: "synced",
+          syncStatus: "synced" as const,
           lastSyncedAt: Date.now(),
-        } as Character
+        }
 
         firebaseCharacters.push(character)
       })
@@ -114,21 +114,20 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       }
 
       // If not in IndexedDB, try to get from Firebase
-      const characterDoc = await doc(db.firebase, "characters", id)
       const characterSnapshot = await getDocs(
         query(collection(db.firebase, "characters"), where("id", "==", id), where("userId", "==", currentUser.uid)),
       )
 
       if (!characterSnapshot.empty) {
-        const data = characterSnapshot.docs[0].data() as Character
+        const data = characterSnapshot.docs[0].data() as Partial<Character>
 
-        // Ensure all required fields exist
+        // Ensure all required fields exist and correct type for syncStatus
         character = {
-          ...DEFAULT_CHARACTER,
+          ...(DEFAULT_CHARACTER as Character),
           ...data,
-          syncStatus: "synced",
+          syncStatus: "synced" as const,
           lastSyncedAt: Date.now(),
-        } as Character
+        }
 
         // Update local DB
         await db.characters.put(character)
@@ -158,6 +157,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     }
 
     const timestamp = Date.now()
+
+    // Create a properly typed character object
     const newCharacter: Character = {
       ...(DEFAULT_CHARACTER as Character),
       ...characterData,
@@ -165,7 +166,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       userId: currentUser.uid,
       createdAt: timestamp,
       updatedAt: timestamp,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       lastSyncedAt: null,
     }
 
@@ -184,14 +185,14 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       await setDoc(doc(db.firebase, "characters", newCharacter.id), newCharacter)
 
       // Update sync status
-      const updatedCharacter = {
+      const updatedCharacter: Character = {
         ...newCharacter,
-        syncStatus: "synced",
+        syncStatus: "synced" as const,
         lastSyncedAt: Date.now(),
       }
 
       await db.characters.update(newCharacter.id, {
-        syncStatus: "synced",
+        syncStatus: "synced" as const,
         lastSyncedAt: Date.now(),
       })
 
@@ -223,15 +224,19 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         throw new Error("Character not found")
       }
 
-      const updatedCharacter = {
+      const updatedCharacter: Character = {
         ...characters[characterIndex],
         ...characterData,
         updatedAt: Date.now(),
-        syncStatus: "local",
+        syncStatus: "local" as const,
       }
 
       // Update in local DB
-      await db.characters.update(id, updatedCharacter)
+      await db.characters.update(id, {
+        ...characterData,
+        updatedAt: Date.now(),
+        syncStatus: "local",
+      })
 
       // Update state
       const updatedCharacters = [...characters]
@@ -293,14 +298,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       set({ isSaving: true })
 
       // Update sync status to syncing
-      await db.characters.update(id, { syncStatus: "syncing" })
+      await db.characters.update(id, { syncStatus: "syncing" as const })
+
+      // Create a properly typed character for state updates
+      const syncingCharacter: Character = {
+        ...character,
+        syncStatus: "syncing" as const,
+      }
 
       set({
-        characters: get().characters.map((c) => (c.id === id ? { ...c, syncStatus: "syncing" } : c)),
-        currentCharacter:
-          get().currentCharacter?.id === id
-            ? { ...get().currentCharacter, syncStatus: "syncing" }
-            : get().currentCharacter,
+        characters: get().characters.map((c) => (c.id === id ? syncingCharacter : c)),
+        currentCharacter: get().currentCharacter?.id === id ? syncingCharacter : get().currentCharacter,
       })
 
       // Save to Firebase
@@ -312,33 +320,38 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
       // Update local DB and state
       await db.characters.update(id, {
-        syncStatus: "synced",
+        syncStatus: "synced" as const,
         lastSyncedAt: Date.now(),
       })
 
+      // Create a properly typed character for state updates
+      const syncedCharacter: Character = {
+        ...character,
+        syncStatus: "synced" as const,
+        lastSyncedAt: Date.now(),
+      }
+
       set({
         isSaving: false,
-        characters: get().characters.map((c) =>
-          c.id === id ? { ...c, syncStatus: "synced", lastSyncedAt: Date.now() } : c,
-        ),
-        currentCharacter:
-          get().currentCharacter?.id === id
-            ? { ...get().currentCharacter, syncStatus: "synced", lastSyncedAt: Date.now() }
-            : get().currentCharacter,
+        characters: get().characters.map((c) => (c.id === id ? syncedCharacter : c)),
+        currentCharacter: get().currentCharacter?.id === id ? syncedCharacter : get().currentCharacter,
       })
     } catch (error) {
       console.error("Error saving character:", error)
 
       // Revert sync status
-      await db.characters.update(id, { syncStatus: "local" })
+      await db.characters.update(id, { syncStatus: "local" as const })
+
+      // Create a properly typed character for state updates
+      const localCharacter: Character = {
+        ...character,
+        syncStatus: "local" as const,
+      }
 
       set({
         isSaving: false,
-        characters: get().characters.map((c) => (c.id === id ? { ...c, syncStatus: "local" } : c)),
-        currentCharacter:
-          get().currentCharacter?.id === id
-            ? { ...get().currentCharacter, syncStatus: "local" }
-            : get().currentCharacter,
+        characters: get().characters.map((c) => (c.id === id ? localCharacter : c)),
+        currentCharacter: get().currentCharacter?.id === id ? localCharacter : get().currentCharacter,
       })
 
       throw new Error("Failed to save character")
@@ -350,20 +363,20 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const { currentCharacter } = get()
     if (!currentCharacter) return
 
-    const updatedCharacter = {
+    const updatedCharacter: Character = {
       ...currentCharacter,
       abilityScores: {
         ...currentCharacter.abilityScores,
         [ability]: value,
       },
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     }
 
     // Update in local DB
     db.characters.update(currentCharacter.id, {
       abilityScores: updatedCharacter.abilityScores,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     })
 
@@ -387,17 +400,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       updatedProficiencies = [...currentCharacter.proficientSavingThrows, ability]
     }
 
-    const updatedCharacter = {
+    const updatedCharacter: Character = {
       ...currentCharacter,
       proficientSavingThrows: updatedProficiencies,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     }
 
     // Update in local DB
     db.characters.update(currentCharacter.id, {
       proficientSavingThrows: updatedProficiencies,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     })
 
@@ -424,17 +437,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       },
     }
 
-    const updatedCharacter = {
+    const updatedCharacter: Character = {
       ...currentCharacter,
       skills: updatedSkills,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     }
 
     // Update in local DB
     db.characters.update(currentCharacter.id, {
       skills: updatedSkills,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     })
 
@@ -460,17 +473,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       },
     }
 
-    const updatedCharacter = {
+    const updatedCharacter: Character = {
       ...currentCharacter,
       skills: updatedSkills,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     }
 
     // Update in local DB
     db.characters.update(currentCharacter.id, {
       skills: updatedSkills,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     })
 
@@ -490,17 +503,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       [type]: value,
     }
 
-    const updatedCharacter = {
+    const updatedCharacter: Character = {
       ...currentCharacter,
       hitPoints: updatedHitPoints,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     }
 
     // Update in local DB
     db.characters.update(currentCharacter.id, {
       hitPoints: updatedHitPoints,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     })
 
@@ -515,17 +528,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const { currentCharacter } = get()
     if (!currentCharacter) return
 
-    const updatedCharacter = {
+    const updatedCharacter: Character = {
       ...currentCharacter,
       armorClass: value,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     }
 
     // Update in local DB
     db.characters.update(currentCharacter.id, {
       armorClass: value,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     })
 
@@ -540,17 +553,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const { currentCharacter } = get()
     if (!currentCharacter) return
 
-    const updatedCharacter = {
+    const updatedCharacter: Character = {
       ...currentCharacter,
       speed: value,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     }
 
     // Update in local DB
     db.characters.update(currentCharacter.id, {
       speed: value,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     })
 
@@ -565,17 +578,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const { currentCharacter } = get()
     if (!currentCharacter) return
 
-    const updatedCharacter = {
+    const updatedCharacter: Character = {
       ...currentCharacter,
       inspiration: !currentCharacter.inspiration,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     }
 
     // Update in local DB
     db.characters.update(currentCharacter.id, {
       inspiration: updatedCharacter.inspiration,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     })
 
@@ -590,17 +603,17 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const { currentCharacter } = get()
     if (!currentCharacter) return
 
-    const updatedCharacter = {
+    const updatedCharacter: Character = {
       ...currentCharacter,
       combatMode: !currentCharacter.combatMode,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     }
 
     // Update in local DB
     db.characters.update(currentCharacter.id, {
       combatMode: updatedCharacter.combatMode,
-      syncStatus: "local",
+      syncStatus: "local" as const,
       updatedAt: Date.now(),
     })
 
