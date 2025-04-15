@@ -1,11 +1,12 @@
 import { create } from "zustand"
-import type { Character } from "@/lib/db"
+import type { Character, ConditionType, Condition, Resistance, DamageType, ResistanceType } from "@/lib/db"
 import { networkStatus } from "@/lib/network-utils"
 import { createCharacterBaseActions } from "./actions/character-base-actions"
 import { createAbilityScoreActions } from "./actions/ability-score-actions"
 import { createSkillActions } from "./actions/skill-actions"
 import { createCharacterStatsActions } from "./actions/character-stats-actions"
 import { createCombatActions, type CombatState } from "./actions/combat-actions"
+import { createConditionActions } from "./actions/condition-actions"
 
 // Update the Character interface to include combatState
 declare module "@/lib/db" {
@@ -53,6 +54,15 @@ export interface CharacterState {
   startTurn: () => void
   endTurn: () => void
   nextRound: () => void
+
+  // Condition actions
+  addConditionImmunity: (conditionType: ConditionType) => void
+  removeConditionImmunity: (conditionType: ConditionType) => void
+  addActiveCondition: (condition: Condition) => boolean
+  removeActiveCondition: (conditionType: ConditionType) => void
+  addResistance: (resistance: Resistance) => void
+  removeResistance: (damageType: DamageType, resistanceType: ResistanceType) => void
+  updateExhaustionLevel: (level: number) => void
 }
 
 export const useCharacterStore = create<CharacterState>((set, get) => ({
@@ -70,45 +80,5 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   ...createSkillActions(set, get),
   ...createCharacterStatsActions(set, get),
   ...createCombatActions(set, get),
+  ...createConditionActions(set, get),
 }))
-
-// Helper function to merge local and remote characters
-// Prioritizes local changes in case of conflicts
-async function mergeCharacters(localCharacters: Character[], remoteCharacters: Character[]): Promise<Character[]> {
-  const mergedCharacters: Character[] = []
-  const localMap = new Map(localCharacters.map((char) => [char.id, char]))
-  const remoteMap = new Map(remoteCharacters.map((char) => [char.id, char]))
-
-  // Process all local characters
-  for (const localChar of localCharacters) {
-    const remoteChar = remoteMap.get(localChar.id)
-
-    if (!remoteChar) {
-      // Character exists only locally
-      mergedCharacters.push(localChar)
-      continue
-    }
-
-    // Character exists both locally and remotely
-    if (localChar.syncStatus === "local") {
-      // Local changes take precedence
-      mergedCharacters.push(localChar)
-    } else if (localChar.lastModified > remoteChar.lastModified) {
-      // Local is newer
-      mergedCharacters.push(localChar)
-    } else {
-      // Remote is newer or same age
-      mergedCharacters.push(remoteChar)
-    }
-
-    // Remove from remote map to track processed characters
-    remoteMap.delete(localChar.id)
-  }
-
-  // Add remaining remote characters (ones that don't exist locally)
-  for (const [_, remoteChar] of remoteMap) {
-    mergedCharacters.push(remoteChar)
-  }
-
-  return mergedCharacters
-}

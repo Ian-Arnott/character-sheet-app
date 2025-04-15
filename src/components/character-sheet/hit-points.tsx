@@ -1,10 +1,11 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
-import { Heart } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { Heart, AlertCircle, Shield, Battery } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { ConditionsDrawer } from "./conditions-drawer"
+import { ResistancesDrawer } from "./resistances-drawer"
+import { ExhaustionDrawer } from "./exhaustion-drawer"
 
 interface HitPointsProps {
   current: number
@@ -23,114 +24,111 @@ export function HitPoints({
   onUpdateMaximum,
   onUpdateTemporary,
 }: HitPointsProps) {
-  const [editing, setEditing] = useState<"current" | "maximum" | "temporary" | null>(null)
+  const [isConditionsDrawerOpen, setIsConditionsDrawerOpen] = useState(false)
+  const [isResistancesDrawerOpen, setIsResistancesDrawerOpen] = useState(false)
+  const [isExhaustionDrawerOpen, setIsExhaustionDrawerOpen] = useState(false)
 
   const healthPercentage = Math.max(0, Math.min(100, (current / maximum) * 100))
 
-  const handleChange = (type: "current" | "maximum" | "temporary", e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number.parseInt(e.target.value)
-    if (isNaN(value)) return
+  // Quick actions for hit points
+  const handleHeal = () => {
+    const newValue = Math.min(current + 1, maximum)
+    onUpdateCurrent(newValue)
+  }
 
-    switch (type) {
-      case "current":
-        onUpdateCurrent(Math.max(0, value))
-        break
-      case "maximum":
-        onUpdateMaximum(Math.max(1, value))
-        break
-      case "temporary":
-        onUpdateTemporary(Math.max(0, value))
-        break
+  const handleDamage = () => {
+    // First reduce temporary hit points
+    if (temporary > 0) {
+      onUpdateTemporary(temporary - 1)
+      return
     }
+
+    // Then reduce current hit points
+    const newValue = Math.max(0, current - 1)
+    onUpdateCurrent(newValue)
+  }
+
+  const handleAddTemp = () => {
+    onUpdateTemporary(temporary + 1)
+  }
+
+  const handleRemoveTemp = () => {
+    const newValue = Math.max(0, temporary - 1)
+    onUpdateTemporary(newValue)
   }
 
   return (
-    <div className="p-3 border rounded-lg">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1">
-          <Heart className="h-5 w-5 text-red-500" />
-          <span className="font-semibold">Hit Points</span>
+    <>
+      <div className="p-3 border rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1">
+            <Heart className="h-5 w-5 text-red-500" />
+            <span className="font-semibold">Hit Points</span>
+          </div>
+          <div className="text-sm text-muted-foreground">{temporary > 0 && `+${temporary} temp`}</div>
         </div>
-        <div className="text-sm text-muted-foreground">{temporary > 0 && `+${temporary} temp`}</div>
+
+        <div className="relative h-8 bg-muted rounded-md overflow-hidden mb-3">
+          <div
+            className="absolute inset-y-0 left-0 bg-red-500 transition-all duration-300"
+            style={{ width: `${healthPercentage}%` }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center text-sm font-medium">
+            {current} / {maximum}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <Button variant="outline" size="sm" onClick={handleHeal}>
+            + Heal
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDamage}>
+            - Damage
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleAddTemp}>
+            + Temp HP
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleRemoveTemp}>
+            - Temp HP
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="flex flex-col items-center h-auto py-2"
+            onClick={() => setIsConditionsDrawerOpen(true)}
+          >
+            <AlertCircle className="h-4 w-4 mb-1" />
+            <span className="text-xs">Conditions</span>
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="flex flex-col items-center h-auto py-2"
+            onClick={() => setIsResistancesDrawerOpen(true)}
+          >
+            <Shield className="h-4 w-4 mb-1" />
+            <span className="text-xs">Resistances</span>
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="flex flex-col items-center h-auto py-2"
+            onClick={() => setIsExhaustionDrawerOpen(true)}
+          >
+            <Battery className="h-4 w-4 mb-1" />
+            <span className="text-xs">Exhaustion</span>
+          </Button>
+        </div>
       </div>
 
-      <div className="relative h-8 bg-muted rounded-md overflow-hidden mb-2">
-        <div
-          className="absolute inset-y-0 left-0 bg-red-500 transition-all duration-300"
-          style={{ width: `${healthPercentage}%` }}
-        />
-        <div className="absolute inset-0 flex items-center justify-center text-sm font-medium">
-          {current} / {maximum}
-        </div>
-      </div>
+      <ConditionsDrawer open={isConditionsDrawerOpen} onOpenChange={setIsConditionsDrawerOpen} />
 
-      <div className="grid grid-cols-3 gap-2">
-        <div>
-          <div className="text-xs text-muted-foreground mb-1">Current</div>
-          {editing === "current" ? (
-            <Input
-              type="number"
-              value={current}
-              onChange={(e) => handleChange("current", e)}
-              onBlur={() => setEditing(null)}
-              className="h-8"
-              min={0}
-              autoFocus
-            />
-          ) : (
-            <div
-              className="h-8 border rounded px-2 flex items-center cursor-pointer hover:border-primary"
-              onClick={() => setEditing("current")}
-            >
-              {current}
-            </div>
-          )}
-        </div>
+      <ResistancesDrawer open={isResistancesDrawerOpen} onOpenChange={setIsResistancesDrawerOpen} />
 
-        <div>
-          <div className="text-xs text-muted-foreground mb-1">Maximum</div>
-          {editing === "maximum" ? (
-            <Input
-              type="number"
-              value={maximum}
-              onChange={(e) => handleChange("maximum", e)}
-              onBlur={() => setEditing(null)}
-              className="h-8"
-              min={1}
-              autoFocus
-            />
-          ) : (
-            <div
-              className="h-8 border rounded px-2 flex items-center cursor-pointer hover:border-primary"
-              onClick={() => setEditing("maximum")}
-            >
-              {maximum}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <div className="text-xs text-muted-foreground mb-1">Temporary</div>
-          {editing === "temporary" ? (
-            <Input
-              type="number"
-              value={temporary}
-              onChange={(e) => handleChange("temporary", e)}
-              onBlur={() => setEditing(null)}
-              className="h-8"
-              min={0}
-              autoFocus
-            />
-          ) : (
-            <div
-              className="h-8 border rounded px-2 flex items-center cursor-pointer hover:border-primary"
-              onClick={() => setEditing("temporary")}
-            >
-              {temporary}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+      <ExhaustionDrawer open={isExhaustionDrawerOpen} onOpenChange={setIsExhaustionDrawerOpen} />
+    </>
   )
 }

@@ -2,6 +2,66 @@ import Dexie, { type Table } from "dexie"
 import { firestore } from "./firebase"
 import type { CombatState } from "@/store/actions/combat-actions"
 
+// Define condition types
+export type ConditionType =
+  | "blinded"
+  | "charmed"
+  | "deafened"
+  | "frightened"
+  | "grappled"
+  | "incapacitated"
+  | "invisible"
+  | "paralyzed"
+  | "petrified"
+  | "poisoned"
+  | "prone"
+  | "restrained"
+  | "stunned"
+  | "unconscious"
+  | "exhaustion"
+
+// Define damage types for resistances
+export type DamageType =
+  | "acid"
+  | "bludgeoning"
+  | "cold"
+  | "fire"
+  | "force"
+  | "lightning"
+  | "necrotic"
+  | "piercing"
+  | "poison"
+  | "psychic"
+  | "radiant"
+  | "slashing"
+  | "thunder"
+
+// Define condition duration types
+export type ConditionDurationType =
+  | "endOfNextTurn"
+  | "startOfNextTurn"
+  | "rounds"
+  | "saveStart"
+  | "saveEnd"
+  | "permanent"
+
+// Define condition with duration
+export interface Condition {
+  type: ConditionType
+  duration: ConditionDurationType
+  rounds?: number
+  appliedAt: number // timestamp
+}
+
+// Define resistance type
+export type ResistanceType = "resistance" | "immunity" | "vulnerability"
+
+// Define resistance
+export interface Resistance {
+  type: ResistanceType
+  damageType: DamageType
+}
+
 // Define the Character interface
 export interface Character {
   id: string
@@ -46,6 +106,12 @@ export interface Character {
     }
   }
   passivePerception?: number // Calculated
+
+  // New fields for conditions, resistances, and exhaustion
+  conditionImmunities: ConditionType[]
+  activeConditions: Condition[]
+  resistances: Resistance[]
+  exhaustionLevel: number
 }
 
 // Define the sync queue item interface
@@ -108,6 +174,12 @@ export const DEFAULT_CHARACTER: Partial<Character> = {
   inspiration: false,
   combatMode: false,
   combatState: null,
+
+  // Default values for new fields
+  conditionImmunities: [],
+  activeConditions: [],
+  resistances: [],
+  exhaustionLevel: 0,
 }
 
 // Create a Dexie database class
@@ -135,6 +207,12 @@ export class CharacterDatabase extends Dexie {
 
     // Update characters table in version 4 to include combatState
     this.version(4).stores({
+      characters:
+        "id, userId, name, level, class, subclass, createdAt, updatedAt, syncStatus, lastModified, combatMode",
+    })
+
+    // Update characters table in version 5 to include conditions, resistances, and exhaustion
+    this.version(5).stores({
       characters:
         "id, userId, name, level, class, subclass, createdAt, updatedAt, syncStatus, lastModified, combatMode",
     })
@@ -188,4 +266,73 @@ export function calculatePassivePerception(
 ): number {
   const perceptionBonus = calculateSkillBonus(wisdomScore, isProficient, hasExpertise, proficiencyBonus)
   return 10 + perceptionBonus
+}
+
+// Helper function to get condition name
+export function getConditionName(condition: ConditionType): string {
+  const conditionNames: Record<ConditionType, string> = {
+    blinded: "Blinded",
+    charmed: "Charmed",
+    deafened: "Deafened",
+    frightened: "Frightened",
+    grappled: "Grappled",
+    incapacitated: "Incapacitated",
+    invisible: "Invisible",
+    paralyzed: "Paralyzed",
+    petrified: "Petrified",
+    poisoned: "Poisoned",
+    prone: "Prone",
+    restrained: "Restrained",
+    stunned: "Stunned",
+    unconscious: "Unconscious",
+    exhaustion: "Exhaustion",
+  }
+
+  return conditionNames[condition]
+}
+
+// Helper function to get damage type name
+export function getDamageTypeName(damageType: DamageType): string {
+  const damageTypeNames: Record<DamageType, string> = {
+    acid: "Acid",
+    bludgeoning: "Bludgeoning",
+    cold: "Cold",
+    fire: "Fire",
+    force: "Force",
+    lightning: "Lightning",
+    necrotic: "Necrotic",
+    piercing: "Piercing",
+    poison: "Poison",
+    psychic: "Psychic",
+    radiant: "Radiant",
+    slashing: "Slashing",
+    thunder: "Thunder",
+  }
+
+  return damageTypeNames[damageType]
+}
+
+// Helper function to get condition duration name
+export function getConditionDurationName(durationType: ConditionDurationType): string {
+  const durationNames: Record<ConditionDurationType, string> = {
+    endOfNextTurn: "Until the end of your next turn",
+    startOfNextTurn: "Until the start of your next turn",
+    rounds: "For a number of rounds",
+    saveStart: "Save at the start of turn",
+    saveEnd: "Save at the end of turn",
+    permanent: "Permanent",
+  }
+
+  return durationNames[durationType]
+}
+
+// Helper function to get resistance type name
+export function getResistanceTypeName(resistanceType: ResistanceType): string {
+  const resistanceTypeNames: Record<ResistanceType, string> = {
+    resistance: "Resistance",
+    immunity: "Immunity",
+    vulnerability: "Vulnerability",
+  }
+
+  return resistanceTypeNames[resistanceType]
 }
