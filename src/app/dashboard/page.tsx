@@ -35,8 +35,8 @@ export default function DashboardPage() {
     createCharacter,
     updateCharacter,
     deleteCharacter,
-    pendingSyncCount,
-    refreshPendingSyncCount,
+    hasPendingChanges,
+    checkPendingChanges,
   } = useCharacterStore()
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -47,14 +47,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchCharacters()
-    refreshPendingSyncCount()
+    checkPendingChanges()
 
     const interval = setInterval(() => {
-      refreshPendingSyncCount()
+      checkPendingChanges()
     }, 30000) // Every 30 seconds
 
     return () => clearInterval(interval)
-  }, [fetchCharacters, refreshPendingSyncCount])
+  }, [fetchCharacters, checkPendingChanges])
 
   const handleCreateCharacter = () => {
     if (characters.length >= 3) {
@@ -146,14 +146,11 @@ export default function DashboardPage() {
         />
 
         <main className="flex-1 container max-w-md mx-auto p-4">
-          {!isOnline && pendingSyncCount > 0 && (
+          {!isOnline && hasPendingChanges && (
             <Alert className="mb-4 bg-amber-50 border-amber-200">
               <WifiOff className="h-4 w-4 text-amber-500" />
               <AlertTitle>You're offline</AlertTitle>
-              <AlertDescription>
-                You have {pendingSyncCount} change{pendingSyncCount === 1 ? "" : "s"} that will sync when you're back
-                online.
-              </AlertDescription>
+              <AlertDescription>You have changes that will sync when you're back online.</AlertDescription>
             </Alert>
           )}
 

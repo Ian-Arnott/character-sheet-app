@@ -9,18 +9,11 @@ import { useNetworkStatus } from "@/lib/network-utils"
 interface SyncStatusIndicatorProps {
   status: "synced" | "local" | "syncing"
   lastSynced: number | null
-  pendingSyncCount?: number
   className?: string
   onClick?: () => void
 }
 
-export function SyncStatusIndicator({
-  status,
-  lastSynced,
-  pendingSyncCount = 0,
-  className,
-  onClick,
-}: SyncStatusIndicatorProps) {
+export function SyncStatusIndicator({ status, lastSynced, className, onClick }: SyncStatusIndicatorProps) {
   const isOnline = useNetworkStatus()
 
   const getStatusIcon = () => {
@@ -47,9 +40,7 @@ export function SyncStatusIndicator({
       case "synced":
         return `Synced${lastSynced ? ` at ${new Date(lastSynced).toLocaleTimeString()}` : ""}`
       case "local":
-        return pendingSyncCount > 0
-          ? `${pendingSyncCount} change${pendingSyncCount === 1 ? "" : "s"} pending sync`
-          : "Changes not saved to cloud"
+        return "Changes pending"
       case "syncing":
         return "Syncing..."
     }
@@ -86,11 +77,6 @@ export function SyncStatusIndicator({
           >
             {getStatusIcon()}
             <span className="hidden sm:inline">{getStatusText()}</span>
-            {pendingSyncCount > 0 && status === "local" && (
-              <span className="inline-flex items-center justify-center w-4 h-4 text-xs bg-white text-amber-800 rounded-full">
-                {pendingSyncCount > 9 ? "9+" : pendingSyncCount}
-              </span>
-            )}
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="bottom">

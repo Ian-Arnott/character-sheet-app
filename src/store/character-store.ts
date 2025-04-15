@@ -13,7 +13,7 @@ interface CharacterState {
   error: string | null
   isSaving: boolean
   isOnline: boolean
-  pendingSyncCount: number
+  hasPendingChanges: boolean
 
   // Actions
   fetchCharacters: () => Promise<void>
@@ -24,7 +24,7 @@ interface CharacterState {
   setCurrentCharacter: (character: Character | null) => void
   saveCharacter: (id: string) => Promise<void>
   checkNetworkStatus: () => boolean
-  refreshPendingSyncCount: () => Promise<number>
+  checkPendingChanges: () => Promise<boolean>
 
   // Character sheet specific actions
   updateAbilityScore: (ability: keyof Character["abilityScores"], value: number) => void
@@ -45,7 +45,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   error: null,
   isSaving: false,
   isOnline: networkStatus.isOnline(),
-  pendingSyncCount: 0,
+  hasPendingChanges: false,
 
   fetchCharacters: async () => {
     const currentUser = auth.currentUser
@@ -103,8 +103,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
       set({ loading: false })
 
-      // Update pending sync count
-      get().refreshPendingSyncCount()
+      // Check if there are pending changes
+      get().checkPendingChanges()
     } catch (error) {
       console.error("Error fetching characters:", error)
       set({ error: "Failed to fetch characters", loading: false })
@@ -242,8 +242,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
             data: newCharacter,
           })
 
-          // Update pending sync count
-          get().refreshPendingSyncCount()
+          // Update pending changes flag
+          get().checkPendingChanges()
         }
         set({ isSaving: false })
       } else {
@@ -255,8 +255,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
           data: newCharacter,
         })
 
-        // Update pending sync count
-        get().refreshPendingSyncCount()
+        // Update pending changes flag
+        get().checkPendingChanges()
       }
 
       return newCharacter
@@ -315,8 +315,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         data: updatedCharacter,
       })
 
-      // Update pending sync count
-      get().refreshPendingSyncCount()
+      // Update pending changes flag
+      get().checkPendingChanges()
     } catch (error) {
       console.error("Error updating character:", error)
       throw new Error("Failed to update character")
@@ -363,8 +363,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         })
       }
 
-      // Update pending sync count
-      get().refreshPendingSyncCount()
+      // Update pending changes flag
+      get().checkPendingChanges()
     } catch (error) {
       console.error("Error deleting character:", error)
       throw new Error("Failed to delete character")
@@ -433,8 +433,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
             currentCharacter: get().currentCharacter?.id === id ? syncedCharacter : get().currentCharacter,
           })
 
-          // Update pending sync count
-          get().refreshPendingSyncCount()
+          // Update pending changes flag
+          get().checkPendingChanges()
 
           return
         } catch (error) {
@@ -466,8 +466,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         currentCharacter: get().currentCharacter?.id === id ? localCharacter : get().currentCharacter,
       })
 
-      // Update pending sync count
-      get().refreshPendingSyncCount()
+      // Update pending changes flag
+      get().checkPendingChanges()
     } catch (error) {
       console.error("Error saving character:", error)
 
@@ -496,10 +496,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     return isOnline
   },
 
-  refreshPendingSyncCount: async () => {
-    const count = await syncQueue.getQueueLength()
-    set({ pendingSyncCount: count })
-    return count
+  checkPendingChanges: async () => {
+    const hasPendingChanges = await syncQueue.hasPendingOperations()
+    set({ hasPendingChanges })
+    return hasPendingChanges
   },
 
   // Character sheet specific actions
@@ -542,8 +542,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         data: updatedCharacter,
       })
       .then(() => {
-        // Update pending sync count
-        get().refreshPendingSyncCount()
+        // Update pending changes flag
+        get().checkPendingChanges()
       })
   },
 
@@ -592,8 +592,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         data: updatedCharacter,
       })
       .then(() => {
-        // Update pending sync count
-        get().refreshPendingSyncCount()
+        // Update pending changes flag
+        get().checkPendingChanges()
       })
   },
 
@@ -645,8 +645,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         data: updatedCharacter,
       })
       .then(() => {
-        // Update pending sync count
-        get().refreshPendingSyncCount()
+        // Update pending changes flag
+        get().checkPendingChanges()
       })
   },
 
@@ -697,8 +697,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         data: updatedCharacter,
       })
       .then(() => {
-        // Update pending sync count
-        get().refreshPendingSyncCount()
+        // Update pending changes flag
+        get().checkPendingChanges()
       })
   },
 
@@ -743,8 +743,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         data: updatedCharacter,
       })
       .then(() => {
-        // Update pending sync count
-        get().refreshPendingSyncCount()
+        // Update pending changes flag
+        get().checkPendingChanges()
       })
   },
 
@@ -784,8 +784,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         data: updatedCharacter,
       })
       .then(() => {
-        // Update pending sync count
-        get().refreshPendingSyncCount()
+        // Update pending changes flag
+        get().checkPendingChanges()
       })
   },
 
@@ -825,8 +825,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         data: updatedCharacter,
       })
       .then(() => {
-        // Update pending sync count
-        get().refreshPendingSyncCount()
+        // Update pending changes flag
+        get().checkPendingChanges()
       })
   },
 
@@ -866,8 +866,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         data: updatedCharacter,
       })
       .then(() => {
-        // Update pending sync count
-        get().refreshPendingSyncCount()
+        // Update pending changes flag
+        get().checkPendingChanges()
       })
   },
 
@@ -907,8 +907,8 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         data: updatedCharacter,
       })
       .then(() => {
-        // Update pending sync count
-        get().refreshPendingSyncCount()
+        // Update pending changes flag
+        get().checkPendingChanges()
       })
   },
 }))

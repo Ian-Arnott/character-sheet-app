@@ -40,25 +40,24 @@ export function CharacterSheet({ characterId }: CharacterSheetProps) {
     toggleCombatMode,
     saveCharacter,
     isSaving,
-    pendingSyncCount,
-    refreshPendingSyncCount,
+    checkPendingChanges,
   } = useCharacterStore()
   const { toast } = useToast()
   const isOnline = useNetworkStatus()
 
   useEffect(() => {
     fetchCharacter(characterId)
-    refreshPendingSyncCount()
-  }, [characterId, fetchCharacter, refreshPendingSyncCount])
+    checkPendingChanges()
+  }, [characterId, fetchCharacter, checkPendingChanges])
 
-  // Periodically refresh pending sync count
+  // Periodically check for pending changes
   useEffect(() => {
     const interval = setInterval(() => {
-      refreshPendingSyncCount()
+      checkPendingChanges()
     }, 30000) // Every 30 seconds
 
     return () => clearInterval(interval)
-  }, [refreshPendingSyncCount])
+  }, [checkPendingChanges])
 
   // Show toast when network status changes
   useEffect(() => {
@@ -171,7 +170,6 @@ export function CharacterSheet({ characterId }: CharacterSheetProps) {
           <SyncStatusIndicator
             status={currentCharacter.syncStatus}
             lastSynced={currentCharacter.lastSyncedAt}
-            pendingSyncCount={pendingSyncCount}
             onClick={currentCharacter.syncStatus === "local" ? handleSyncCharacter : undefined}
           />
           {isOnline && currentCharacter.syncStatus === "local" && (

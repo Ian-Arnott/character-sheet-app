@@ -11,38 +11,33 @@ import { useCharacterStore } from "@/store/character-store"
 import type { Character } from "@/lib/db"
 import ProtectedRoute from "@/components/auth/protected-route"
 import { Save, WifiOff } from "lucide-react"
-import * as React from "react"
 import { useNetworkStatus } from "@/lib/network-utils"
 import { SyncStatusIndicator } from "@/components/sync-status-indicator"
 
-// Update the interface to make params a Promise
 interface CharacterDetailPageProps {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export default function CharacterDetailPage({ params }: CharacterDetailPageProps) {
-  // Use React.use to unwrap the Promise
-  const unwrappedParams = React.use(params)
-  const characterId = unwrappedParams.id
+  const characterId = params.id
 
   const router = useRouter()
   const { toast } = useToast()
-  const { currentCharacter, updateCharacter, saveCharacter, isSaving, pendingSyncCount, refreshPendingSyncCount } =
-    useCharacterStore()
+  const { currentCharacter, updateCharacter, saveCharacter, isSaving, checkPendingChanges } = useCharacterStore()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const isOnline = useNetworkStatus()
 
   useEffect(() => {
-    refreshPendingSyncCount()
+    checkPendingChanges()
 
     const interval = setInterval(() => {
-      refreshPendingSyncCount()
+      checkPendingChanges()
     }, 30000) // Every 30 seconds
 
     return () => clearInterval(interval)
-  }, [refreshPendingSyncCount])
+  }, [checkPendingChanges])
 
   const handleEditCharacter = () => {
     setIsDrawerOpen(true)
@@ -113,7 +108,6 @@ export default function CharacterDetailPage({ params }: CharacterDetailPageProps
                 <SyncStatusIndicator
                   status={currentCharacter.syncStatus}
                   lastSynced={currentCharacter.lastSyncedAt}
-                  pendingSyncCount={pendingSyncCount}
                   onClick={currentCharacter.syncStatus === "local" ? handleSyncCharacter : undefined}
                   className="mr-2"
                 />

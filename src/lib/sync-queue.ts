@@ -1,7 +1,7 @@
 import { db } from "./db"
 import { networkStatus } from "./network-utils"
 import { firestore } from "./firebase"
-import { doc, setDoc, deleteDoc } from "firebase/firestore"
+import { doc, writeBatch } from "firebase/firestore"
 import { auth } from "./firebase"
 
 // Define the types of operations that can be queued
@@ -26,6 +26,7 @@ class SyncQueueManager {
   private maxRetries = 5
   private syncInterval = 30000 // 30 seconds
   private intervalId: NodeJS.Timeout | null = null
+  private maxBatchSize = 500 // Firestore batch limit is 500 operations
 
   constructor() {
     // Start the sync process when online
@@ -51,6 +52,47 @@ class SyncQueueManager {
     }
 
     try {
+      // Check if there's already an operation for this document
+      const existingOps = await db.syncQueue
+        .where("documentId")
+        .equals(operation.documentId)
+        .and((op) => op.collection === operation.collection && op.userId === currentUser.uid)
+        .toArray()
+
+      if (existingOps.length > 0) {
+        // If there's a delete operation, keep it (it takes precedence)
+        if (existingOps.some((op) => op.type === "delete")) {
+          // If we're also trying to delete, do nothing
+          if (operation.type === "delete") {
+            return
+          }
+          // Otherwise, we're trying to update a document marked for deletion
+          // This is unusual, so we'll remove the delete operation and add an update
+          await db.syncQueue.where("documentId").equals(operation.documentId).delete()
+        } else {
+          // For other operations, just update the existing one with new data
+          const latestOp = existingOps.reduce(
+            (latest, op) => (op.timestamp > latest.timestamp ? op : latest),
+            existingOps[0],
+          )
+
+          await db.syncQueue.update(latestOp.id, {
+            type: operation.type, // Use the new operation type
+            data: operation.data, // Use the new data
+            timestamp: Date.now(),
+            retryCount: 0, // Reset retry count
+          })
+
+          // If we're online, start syncing immediately
+          if (networkStatus.isOnline()) {
+            this.startSync()
+          }
+
+          return
+        }
+      }
+
+      // If we get here, we need to add a new operation
       await db.syncQueue.add({
         ...operation,
         timestamp: Date.now(),
@@ -115,25 +157,47 @@ class SyncQueueManager {
         return
       }
 
-      // Process each operation
+      // Group operations by collection for batching
+      const operationsByCollection: Record<string, SyncOperation[]> = {}
+
       for (const operation of operations) {
-        try {
-          await this.processOperation({ ...operation, id: String(operation.id) })
-          // If successful, remove from queue
-          await db.syncQueue.delete(operation.id)
-        } catch (error) {
-          console.error(`Error processing operation ${operation.id}:`, error)
+        if (!operationsByCollection[operation.collection]) {
+          operationsByCollection[operation.collection] = []
+        }
+        operationsByCollection[operation.collection].push({ ...operation, id: String(operation.id) })
+      }
 
-          // Increment retry count
-          operation.retryCount++
+      // Process each collection's operations in batches
+      for (const [collection, collectionOps] of Object.entries(operationsByCollection)) {
+        // Process in batches of maxBatchSize
+        for (let i = 0; i < collectionOps.length; i += this.maxBatchSize) {
+          const batchOps = collectionOps.slice(i, i + this.maxBatchSize)
+          try {
+            await this.processBatch(collection, batchOps)
 
-          // If we've exceeded max retries, remove from queue
-          if (operation.retryCount > this.maxRetries) {
-            console.warn(`Operation ${operation.id} exceeded max retries, removing from queue`)
-            await db.syncQueue.delete(operation.id)
-          } else {
-            // Otherwise update the retry count
-            await db.syncQueue.update(operation.id, { retryCount: operation.retryCount })
+            // If successful, remove processed operations from queue
+            await db.syncQueue.bulkDelete(batchOps.map((op) => Number(op.id)))
+          } catch (error) {
+            console.error(`Error processing batch for collection ${collection}:`, error)
+
+            // Update retry counts for failed operations
+            for (const operation of batchOps) {
+              const opId = Number(operation.id)
+              const op = await db.syncQueue.get(opId)
+
+              if (op) {
+                op.retryCount++
+
+                // If we've exceeded max retries, remove from queue
+                if (op.retryCount > this.maxRetries) {
+                  console.warn(`Operation ${opId} exceeded max retries, removing from queue`)
+                  await db.syncQueue.delete(opId)
+                } else {
+                  // Otherwise update the retry count
+                  await db.syncQueue.update(opId, { retryCount: op.retryCount })
+                }
+              }
+            }
           }
         }
       }
@@ -142,34 +206,55 @@ class SyncQueueManager {
     }
   }
 
-  // Process a single operation
-  private async processOperation(operation: SyncOperation): Promise<void> {
-    const { type, collection, documentId, data } = operation
+  // Process a batch of operations for a single collection
+  private async processBatch(collection: string, operations: SyncOperation[]): Promise<void> {
+    const batch = writeBatch(firestore)
 
-    switch (type) {
-      case "create":
-      case "update":
-        if (!data) {
-          throw new Error(`No data provided for ${type} operation`)
-        }
-        await setDoc(doc(firestore, collection, documentId), data)
-        break
-      case "delete":
-        await deleteDoc(doc(firestore, collection, documentId))
-        break
-      default:
-        throw new Error(`Unknown operation type: ${type}`)
+    // Group operations by document ID to ensure we only apply the latest
+    const latestOpsByDocId: Record<string, SyncOperation> = {}
+
+    // Find the latest operation for each document
+    for (const operation of operations) {
+      const existing = latestOpsByDocId[operation.documentId]
+      if (!existing || operation.timestamp > existing.timestamp) {
+        latestOpsByDocId[operation.documentId] = operation
+      }
     }
+
+    // Apply the latest operations to the batch
+    for (const operation of Object.values(latestOpsByDocId)) {
+      const { type, documentId, data } = operation
+      const docRef = doc(firestore, collection, documentId)
+
+      switch (type) {
+        case "create":
+        case "update":
+          if (!data) {
+            throw new Error(`No data provided for ${type} operation`)
+          }
+          batch.set(docRef, data)
+          break
+        case "delete":
+          batch.delete(docRef)
+          break
+        default:
+          throw new Error(`Unknown operation type: ${type}`)
+      }
+    }
+
+    // Commit the batch
+    await batch.commit()
   }
 
-  // Get the current queue length
-  public async getQueueLength(): Promise<number> {
+  // Check if there are any pending operations
+  public async hasPendingOperations(): Promise<boolean> {
     const currentUser = auth.currentUser
     if (!currentUser) {
-      return 0
+      return false
     }
 
-    return await db.syncQueue.where("userId").equals(currentUser.uid).count()
+    const count = await db.syncQueue.where("userId").equals(currentUser.uid).count()
+    return count > 0
   }
 
   // Clean up resources
