@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie"
 import { firestore } from "./firebase"
+import type { CombatState } from "@/store/actions/combat-actions"
 
 // Define the Character interface
 export interface Character {
@@ -16,6 +17,7 @@ export interface Character {
   lastModified: number // For conflict resolution
   inspiration: boolean
   combatMode: boolean
+  combatState?: CombatState | null
 
   // Character stats
   abilityScores: {
@@ -105,6 +107,7 @@ export const DEFAULT_CHARACTER: Partial<Character> = {
   lastModified: Date.now(),
   inspiration: false,
   combatMode: false,
+  combatState: null,
 }
 
 // Create a Dexie database class
@@ -128,6 +131,12 @@ export class CharacterDatabase extends Dexie {
     // Update characters table in version 3 to include lastModified
     this.version(3).stores({
       characters: "id, userId, name, level, class, subclass, createdAt, updatedAt, syncStatus, lastModified",
+    })
+
+    // Update characters table in version 4 to include combatState
+    this.version(4).stores({
+      characters:
+        "id, userId, name, level, class, subclass, createdAt, updatedAt, syncStatus, lastModified, combatMode",
     })
 
     this.firebase = firestore

@@ -2,15 +2,17 @@
 
 import { useEffect } from "react"
 import { useCharacterStore } from "@/store/character-store"
-import { getProficiencyBonus, calculatePassivePerception } from "@/lib/db"
+import { getProficiencyBonus, calculatePassivePerception, getAbilityModifier } from "@/lib/db"
 import { Button } from "@/components/ui/button"
 import { SyncStatusIndicator } from "@/components/sync-status-indicator"
 import { AbilityScore } from "@/components/character-sheet/ability-score"
 import { SavingThrow } from "@/components/character-sheet/saving-throw"
 import { Skill } from "@/components/character-sheet/skill"
 import { Header } from "@/components/character-sheet/header"
+import { CombatHeader } from "@/components/character-sheet/combat-header"
 import { HitPoints } from "@/components/character-sheet/hit-points"
 import { Speed } from "@/components/character-sheet/speed"
+import { Swords } from "lucide-react"
 import {
   CharacterTabs,
   CharacterTabsList,
@@ -38,6 +40,9 @@ export function CharacterSheet({ characterId }: CharacterSheetProps) {
     updateSpeed,
     toggleInspiration,
     toggleCombatMode,
+    startTurn,
+    endTurn,
+    nextRound,
     saveCharacter,
     isSaving,
     checkPendingChanges,
@@ -185,6 +190,9 @@ export function CharacterSheet({ characterId }: CharacterSheetProps) {
         {currentCharacter.subclass && ` (${currentCharacter.subclass})`}
       </div>
 
+      {/* Display combat header when in combat mode */}
+      {currentCharacter.combatMode && <CombatHeader />}
+
       <Header
         armorClass={currentCharacter.armorClass}
         dexterityScore={currentCharacter.abilityScores.dexterity}
@@ -311,17 +319,81 @@ export function CharacterSheet({ characterId }: CharacterSheetProps) {
         </CharacterTabsContent>
 
         <CharacterTabsContent value="combat">
-          <div className="text-center py-12 text-muted-foreground">
-            {!isOnline ? (
-              <div>
-                <WifiOff className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-                <p>Combat features are available in offline mode.</p>
-                <p className="text-sm mt-2">All changes will sync when you're back online.</p>
+          {currentCharacter.combatMode ? (
+            <div className="space-y-4">
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-4">Combat Tracker</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border rounded-lg p-3 bg-slate-50 dark:bg-slate-900">
+                    <h4 className="text-sm font-medium mb-2">Current Round</h4>
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-bold">{currentCharacter.combatState?.round || 1}</span>
+                      <Button variant="outline" size="sm" onClick={nextRound} className="text-sm">
+                        Next Round
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg p-3 bg-slate-50 dark:bg-slate-900">
+                    <h4 className="text-sm font-medium mb-2">Turn Status</h4>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">
+                        {currentCharacter.combatState?.isPlayerTurn ? "Your turn" : "Waiting for your turn"}
+                      </span>
+                      {currentCharacter.combatState?.isPlayerTurn ? (
+                        <Button variant="destructive" size="sm" onClick={endTurn}>
+                          End Turn
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={startTurn}>
+                          Start Turn
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 text-sm text-muted-foreground">
+                  <p>Use the combat tracker to keep track of rounds and turns during combat.</p>
+                  <p className="mt-2">You can exit combat mode by clicking the Combat Mode button in the header.</p>
+                </div>
               </div>
-            ) : (
-              "Combat features will be implemented in a future update."
-            )}
-          </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Combat Stats</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <div className="border rounded-lg p-3 text-center">
+                    <div className="text-xs text-muted-foreground mb-1">Initiative</div>
+                    <div className="text-xl font-bold">
+                      {getAbilityModifier(currentCharacter.abilityScores.dexterity) >= 0
+                        ? `+${getAbilityModifier(currentCharacter.abilityScores.dexterity)}`
+                        : getAbilityModifier(currentCharacter.abilityScores.dexterity)}
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg p-3 text-center">
+                    <div className="text-xs text-muted-foreground mb-1">Armor Class</div>
+                    <div className="text-xl font-bold">{currentCharacter.armorClass}</div>
+                  </div>
+
+                  <div className="border rounded-lg p-3 text-center">
+                    <div className="text-xs text-muted-foreground mb-1">Speed</div>
+                    <div className="text-xl font-bold">{currentCharacter.speed} ft.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>Combat mode is currently inactive.</p>
+              <p className="mt-2">Click the "Combat Mode" button in the header to activate combat tracking.</p>
+              <Button variant="outline" size="sm" onClick={toggleCombatMode} className="mt-4">
+                <Swords className="h-4 w-4 mr-2" />
+                Enter Combat Mode
+              </Button>
+            </div>
+          )}
         </CharacterTabsContent>
 
         <CharacterTabsContent value="spells">
