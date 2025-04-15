@@ -14,13 +14,7 @@ import { Save, WifiOff } from "lucide-react"
 import { useNetworkStatus } from "@/lib/network-utils"
 import { SyncStatusIndicator } from "@/components/sync-status-indicator"
 
-interface CharacterDetailPageProps {
-  params: {
-    id: string
-  }
-}
-
-export default function CharacterDetailPage({ params }: CharacterDetailPageProps) {
+export default function CharacterDetailPage({ params }: { params: { id: string } }) {
   const characterId = params.id
 
   const router = useRouter()
