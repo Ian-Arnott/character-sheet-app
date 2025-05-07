@@ -1,27 +1,13 @@
-"use client"
+import CharacterList from "@/components/character-list"
+import { AppBar } from "@/components/app-bar"
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
-import { Loader2 } from "lucide-react"
-
-export default function HomePage() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.push("/dashboard")
-      } else {
-        router.push("/login")
-      }
-    }
-  }, [user, loading, router])
-
+export default function Home() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
+    <main className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-900">
+      <AppBar title="D&D Character Sheets" />
+      <div className="container mx-auto px-4 py-6">
+        <CharacterList />
+      </div>
+    </main>
   )
 }

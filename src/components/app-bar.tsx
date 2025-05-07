@@ -1,65 +1,33 @@
 "use client"
 
-import type React from "react"
-
-import { useRouter } from "next/navigation"
-import { ChevronLeft, Menu, MoreVertical } from "lucide-react"
+import { ArrowLeft, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/contexts/auth-context"
-import { ModeToggle } from "./toggle-mode"
+import { useRouter } from "next/navigation"
 
 interface AppBarProps {
   title: string
   showBackButton?: boolean
-  onMenuClick?: () => void
-  actions?: React.ReactNode
 }
 
-export function AppBar({ title, showBackButton = false, onMenuClick, actions }: AppBarProps) {
+export function AppBar({ title, showBackButton = false }: AppBarProps) {
   const router = useRouter()
-  const { signOut } = useAuth()
-
-  const handleBackClick = () => {
-    router.back()
-  }
-
-  const handleSignOut = async () => {
-    await signOut()
-    router.push("/login")
-  }
 
   return (
-    <div className="sticky top-0 z-10 flex h-14 items-center justify-between border-b bg-background px-4 md:px-6">
-      <div className="flex items-center gap-2">
-        {showBackButton ? (
-          <Button variant="ghost" size="icon" onClick={handleBackClick} className="mr-2">
-            <ChevronLeft className="h-5 w-5" />
-            <span className="sr-only">Back</span>
-          </Button>
-        ) : onMenuClick ? (
-          <Button variant="ghost" size="icon" onClick={onMenuClick} className="mr-2">
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Menu</span>
-          </Button>
-        ) : null}
-        <h1 className="text-lg font-semibold">{title}</h1>
-      </div>
-      <div className="flex items-center gap-2">
-        {actions}
-        <ModeToggle />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="h-5 w-5" />
-              <span className="sr-only">More options</span>
+    <header className="sticky top-0 z-10 w-full border-b bg-white dark:bg-slate-950 dark:border-slate-800">
+      <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {showBackButton && (
+            <Button variant="ghost" size="icon" className="mr-1" onClick={() => router.back()} aria-label="Go back">
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          )}
+          <h1 className="text-xl font-bold">{title}</h1>
+        </div>
+        <Button variant="ghost" size="icon" className="md:hidden">
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Menu</span>
+        </Button>
       </div>
-    </div>
+    </header>
   )
 }
