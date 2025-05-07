@@ -55,7 +55,6 @@ export default function CharacterPage() {
     return (
         <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-900">
             <AppBar title={character.name} showBackButton={true} />
-
         </div>
     )
 }
