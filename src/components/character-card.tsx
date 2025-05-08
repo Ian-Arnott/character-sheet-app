@@ -3,20 +3,21 @@
 import { Card, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
-import type { Character } from "@/lib/db"
 import { useCharacterStore } from "@/store/character-store"
 import { useRouter } from "next/navigation"
+import { Character } from "@/types/character"
 
 interface CharacterCardProps {
   character: Character
 }
 
 export default function CharacterCard({ character }: CharacterCardProps) {
-  const { deleteCharacter } = useCharacterStore()
+  const { deleteCharacter, selectCharacter } = useCharacterStore()
 
   const router = useRouter()
 
   const handleRoute = () => {
+    selectCharacter(character.id)
     router.push(`/character/${character.id}`)
   }
 

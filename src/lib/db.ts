@@ -1,23 +1,6 @@
+import { Character } from "@/types/character"
 import Dexie, { type Table } from "dexie"
 
-export interface Character {
-  id?: number
-  name: string
-  race: string
-  class: string
-  level: number
-  strength: number
-  dexterity: number
-  constitution: number
-  intelligence: number
-  wisdom: number
-  charisma: number
-  hitPoints: number
-  maxHitPoints: number
-  armorClass: number
-  createdAt: Date
-  updatedAt: Date
-}
 
 class DndDatabase extends Dexie {
   characters!: Table<Character>
