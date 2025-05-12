@@ -40,7 +40,7 @@ export default function CharacterList() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Your Characters</h2>
-        <Button onClick={handleCreateCharacter} size="sm" className="flex items-center gap-1">
+        <Button onClick={handleCreateCharacter} size="sm" className="flex items-center gap-1 cursor-pointer">
           <PlusCircle className="h-4 w-4" />
           <span>New Character</span>
         </Button>

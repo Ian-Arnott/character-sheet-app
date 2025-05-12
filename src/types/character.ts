@@ -45,7 +45,7 @@ export interface Character {
     armorClass: number;
     spellSlots: SpellSlots;
     spellcastingAbility?: AbilityName;
-    spells: Spells; // e.g., "wisdom"
+    spells: Spells;
     inventory: InventoryItem[];
     equipped: {
         armor?: Armor;
